@@ -10,6 +10,8 @@ urlpatterns = [
     ),
     path("library/rated_books", views.read_books, name="read_books"),
     path("library/saved_books", views.SaveList, name="to_read"),
+
+    path('books/<int:book_id>/text-to-speech/', views.text_to_speech, name='text_to_speech'),
 ]
 
 # Ajax Views

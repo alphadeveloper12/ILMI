@@ -14,7 +14,19 @@ from mainapp.helpers import (
 from mainapp.models import UserRating, SaveForLater
 from django.contrib import messages
 from django.core.paginator import Paginator
-
+from django.shortcuts import render
+from django.http import HttpResponse
+from PyPDF2 import PdfReader
+import os
+from django.conf import settings
+from django.http import FileResponse
+import tempfile
+import pyttsx3
+from .models import Book
+from gtts import gTTS
+import os
+from django.conf import settings
+from django.http import FileResponse
 
 import random
 import operator
@@ -182,3 +194,69 @@ def listen(request):
         return render(request, "mainapp/listen.html", {"no_books_available": no_books_available})
 
     return render(request, "mainapp/listen.html", {"page_obj": page_obj, "num": num})
+
+
+def extract_text_from_pdf(pdf_path):
+    with open(pdf_path, 'rb') as f:
+        pdf = PdfReader(f)
+        text = ''
+        for page in pdf.pages:
+            text += page.extract_text()
+        return text
+
+
+from django.conf import settings
+from django.http import HttpResponse
+
+def text_to_speech(request, book_id):
+    book = Book.objects.get(pk=book_id)
+    pdf_path = book.pdf_file.path
+    pdf_text = extract_text_from_pdf(pdf_path)
+
+    # Generate the audio file path
+    audio_file_path = os.path.join(settings.MEDIA_ROOT, 'audio', f'{book.bookname}.mp3')
+    print(audio_file_path)
+
+    # Check if the audio file already exists
+    if os.path.exists(audio_file_path):
+        # Serve the existing audio file to the user
+        with open(audio_file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='audio/mp3')
+            response['Content-Disposition'] = f'inline; filename="{book.bookname}.mp3"'
+            # print(response)
+            # Get the relative path of the audio file
+            audio_file_relative_path = os.path.join('audio', f'{book.bookname}.mp3')
+            print(audio_file_path)
+
+            # Construct the direct URL of the audio file
+            audio_file_url = f'{settings.MEDIA_URL}{audio_file_relative_path}'
+            print(audio_file_path)
+
+            # Return the direct URL in the response header
+            response['X-Audio-File-URL'] = audio_file_url
+            print(response)
+            return response
+    else:
+        # Convert text to speech using gTTS library
+        tts = gTTS(text=pdf_text, lang='en')
+
+        # Save the audio file
+        tts.save(audio_file_path)
+
+        # Serve the newly created audio file to the user
+        with open(audio_file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='audio/mp3')
+            response['Content-Disposition'] = f'inline; filename="{book.bookname}.mp3"'
+
+        # Get the relative path of the audio file
+        audio_file_relative_path = os.path.join('audio', f'{book.bookname}.mp3')
+        print(audio_file_path)
+
+        # Construct the direct URL of the audio file
+        audio_file_url = f'{settings.MEDIA_URL}{audio_file_relative_path}'
+        print(audio_file_path)
+
+        # Return the direct URL in the response header
+        response['X-Audio-File-URL'] = audio_file_url
+        print(response)
+        return response

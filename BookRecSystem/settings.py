@@ -186,7 +186,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
+AUDIO_ROOT = os.path.join(MEDIA_ROOT, 'audio')
+os.makedirs(AUDIO_ROOT, exist_ok=True)
 LOGIN_REDIRECT_URL = "index"
 LOGOUT_REDIRECT_URL = "index"
 

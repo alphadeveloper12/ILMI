@@ -5,9 +5,23 @@
 {% endblock title %}
 {% block head %}
     <link rel="stylesheet" href="{% static 'mainapp/css/read.css' %}">
+{#    <link rel="stylesheet" href="{% static 'mainapp/css/index.css' %}">#}
 {% endblock head %}
 {% block main %}
+    <div class="preloader-container">
+        <div class="spinner">
+            <div class="rec">
+                <div class="rect1"><img src="{% static 'mainapp/png/book.svg' %}" alt="book"></div>
+                <div class="rect2"><img src="{% static 'mainapp/png/book.svg' %}" alt="book"></div>
+                <div class="rect3"><img src="{% static 'mainapp/png/book.svg' %}" alt="book"></div>
+                <div class="rect4"><img src="{% static 'mainapp/png/book.svg' %}" alt="book"></div>
+                <div class="rect5"><img src="{% static 'mainapp/png/book.svg' %}" alt="book"></div>
+            </div>
+            <div class="stand"></div>
+        </div>
+    </div>
     <h1 class="genre-head text-center pt-3 pb-3">Read and Listen Books</h1>
+
     <div class="card-deck pb-3" style="margin:0 auto;">
         {% for book in page_obj %}
             <div class="card  mb-4" style="max-width:600px;">
@@ -15,16 +29,19 @@
                     <div class="col-md-4 ">
                         <img class="img-fluid card-img" src="{{ book.thumbnail.url }}" alt="book Card">
                     </div>
+
                     <div class="text-center col-md-8">
                         <div class="card-body">
                             <h5 class="card-title">{{ book.bookname }}</h5>
                             <p class="card-text"><i>by {{ book.author }}</i></p>
-                            <div onclick="translateToAudio('{{ book.pdf_file.url }}')" class="rating-block"
-                                 id="rating-block-{{ book.book_id }}">
+                            {#                            <button >Open PDF</button>#}
+                            <div class="rating-block"
+                                 id="book_id_{{ book.id }}">
                                 Read This Book <i class="fa fa-book"></i>
                             </div>
                             <a href="javascript:;" onclick="bookDetails(this)" class="btn more-details"
                                data-book-id="{{ book.book_id }}">More Details</a>
+                            <audio class="audio_player" id="audioPlayer_{{ book.id }}" controls></audio>
                         </div>
                     </div>
                     <br>
@@ -53,7 +70,7 @@
         </ul>
     </nav>
     <div id="pdf-overlay">
-        <div >
+        <div>
             <button id="pdf-close-btn"><span class="nav-icon-s fa fa-times fa-2x" style="color: white;"></span>
             </button>
             <button id="listen"><span class="nav-icon-s fa fa-volume-up fa-2x" style="color: white;"></span>
@@ -62,6 +79,8 @@
         <canvas id="pdf-canvas-fullscreen"></canvas>
     </div>
     <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <script>
         // Initialize PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.js';
@@ -166,5 +185,42 @@
             document.getElementById("pdf-canvas-fullscreen").style.display = "none";
             speechSynthesis.cancel();
         });
+        $(document).ready(function () {
+            $('.preloader-container').delay(700).fadeOut('slow');
+            {% for book in page_obj %}
+                $('#book_id_{{ book.id }}').click(function () {
+                    $('.preloader-container').show();
+                    $('audio').each(function () {
+                        this.pause();
+                        this.currentTime = 0;
+                    });
+                    $('.audio_player').hide();
+                    $.ajax({
+                        type: 'post',
+                        url: '{% url 'text_to_speech' book_id=book.id %}',
+                        cache: false,
+                        data: {
+                            csrfmiddlewaretoken: '{{ csrf_token }}'
+                        },
+                        success: function (result, textStatus, xhr) {
+
+                            $('#audioPlayer_{{ book.id }}').show();
+                            var audioUrl = xhr.getResponseHeader('X-Audio-File-URL');
+                            var audioPlayer = document.getElementById('audioPlayer_{{ book.id }}');
+                            audioPlayer.src = audioUrl;
+                            audioPlayer.play();
+                            $('.preloader-container').hide();
+                            var pdfUrl = '{{ book.pdf_file.url }}';
+                            window.open(pdfUrl, '_blank');
+                        },
+                        error: function (xhr, textStatus, errorThrown) {
+                            alert('An error occurred: ' + errorThrown);
+                        }
+                    });
+                });
+            {% endfor %}
+        });
+
+
     </script>
 {% endblock main %}
